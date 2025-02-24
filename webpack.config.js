@@ -4,8 +4,15 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 module.exports = {
   mode: process.env.NODE_ENV || 'development',
   entry: './src/renderer/index.tsx',
-  target: 'electron-renderer',
+  target: 'web', // electron-rendererから変更
   devtool: 'source-map',
+  devServer: {
+    static: {
+      directory: path.join(__dirname, 'dist'),
+    },
+    port: 3000,
+    hot: true,
+  },
   module: {
     rules: [
       {

@@ -3,10 +3,11 @@
   "productName": "archistry",
   "version": "1.0.0",
   "description": "My Electron application description",
-  "main": "src/index.js",
+  "main": "dist/main/index.js",
   "scripts": {
+    "build": "tsc",
     "start": "electron-forge start",
-    "dev": "concurrently \"cross-env NODE_ENV=development webpack serve\" \"cross-env NODE_ENV=development electron-forge start\"",
+    "dev": "npm run build && concurrently \"cross-env NODE_ENV=development webpack serve\" \"cross-env NODE_ENV=development electron-forge start\"",
     "package": "electron-forge package",
     "make": "electron-forge make",
     "publish": "electron-forge publish",

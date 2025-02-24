@@ -58,7 +58,7 @@ const createWindow = (): void => {
         // Open the DevTools.
         mainWindow.webContents.openDevTools();
     } else {
-        mainWindow.loadURL(`file://${path.join(__dirname, '../renderer/index.html')}`);
+        mainWindow.loadURL(`file://${path.join(__dirname, '../dist/index.html')}`);
     }
 };
 

@@ -4,7 +4,7 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 module.exports = {
   mode: process.env.NODE_ENV || 'development',
   entry: './src/renderer/index.tsx',
-  target: 'web', // electron-rendererから変更
+  target: 'web',
   devtool: 'source-map',
   devServer: {
     static: {
@@ -36,11 +36,13 @@ module.exports = {
   },
   output: {
     filename: 'renderer.js',
-    path: path.resolve(__dirname, 'dist')
+    path: path.resolve(__dirname, 'dist'),
+    publicPath: '/'
   },
   plugins: [
     new HtmlWebpackPlugin({
-      template: './src/renderer/index.html'
+      template: path.resolve(__dirname, 'src/renderer/index.html'),
+      filename: 'index.html'
     })
   ]
 };

@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import * as path from 'path';
 
 // 開発環境の場合のみelectron-reloadを有効化
@@ -14,6 +14,27 @@ if (process.env.NODE_ENV === 'development') {
 if (require('electron-squirrel-startup')) {
     app.quit();
 }
+
+const waitForWebpack = async () => {
+    return new Promise((resolve) => {
+        // 開発環境の場合、webpack-dev-serverが起動するまで待機
+        if (process.env.NODE_ENV === 'development') {
+            const tryConnection = () => {
+                const req = require('http').get('http://localhost:3000', (res: any) => {
+                    if (res.statusCode === 200) {
+                        resolve(true);
+                    }
+                });
+                req.on('error', () => {
+                    setTimeout(tryConnection, 100);
+                });
+            };
+            tryConnection();
+        } else {
+            resolve(true);
+        }
+    });
+};
 
 const createWindow = (): void => {
     // Create the browser window.
@@ -43,7 +64,7 @@ const createWindow = (): void => {
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
-app.on('ready', createWindow);
+app.whenReady().then(createWindow);
 
 // Quit when all windows are closed.
 app.on('window-all-closed', () => {
@@ -58,4 +79,12 @@ app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
         createWindow();
     }
+});
+
+// IPC通信の設定
+ipcMain.handle('dialog:openDirectory', async () => {
+    const result = await dialog.showOpenDialog({
+        properties: ['openDirectory']
+    });
+    return result;
 });

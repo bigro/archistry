@@ -1,5 +1,11 @@
 import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import * as path from 'path';
+import { registerFileSystemHandlers } from './handlers/fileSystemHandlers';
+
+// ウィンドウオブジェクトをグローバル参照として保持
+// これは、JavaScriptオブジェクトがガベージコレクトされると
+// ウィンドウが自動的に閉じられるのを防ぐため
+let mainWindow: BrowserWindow | null = null;
 
 // 開発環境の場合のみelectron-reloadを有効化
 if (process.env.NODE_ENV === 'development') {
@@ -38,12 +44,14 @@ const waitForWebpack = async () => {
 
 const createWindow = (): void => {
     // Create the browser window.
-    const mainWindow = new BrowserWindow({
+    mainWindow = new BrowserWindow({
         height: 600,
         width: 800,
         webPreferences: {
             nodeIntegration: true,
+            contextIsolation: false,
             devTools: process.env.NODE_ENV === 'development',  // 開発時のみDevToolsを有効化
+            preload: path.join(__dirname, 'preload.js')
         }
     });
 
@@ -60,31 +68,34 @@ const createWindow = (): void => {
     } else {
         mainWindow.loadURL(`file://${path.join(__dirname, '../dist/index.html')}`);
     }
-};
 
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-app.whenReady().then(createWindow);
+    // ウィンドウが閉じられたときに呼ばれる
+    mainWindow.on('closed', () => {
+        // ウィンドウオブジェクトの参照を解除
+        mainWindow = null;
+    });
+
+};
 
 // Quit when all windows are closed.
 app.on('window-all-closed', () => {
+    // macOS以外では、ユーザーがCmd + Qで明示的に終了するまで
+    // アプリケーションはアクティブのままにするのが一般的
     if (process.platform !== 'darwin') {
         app.quit();
     }
 });
 
-app.on('activate', () => {
-    // On OS X it's common to re-create a window in the app when the
-    // dock icon is clicked and there are no other windows open.
-    if (BrowserWindow.getAllWindows().length === 0) {
-        createWindow();
-    }
-});
+// Electronの初期化が完了したら呼ばれる
+app.whenReady().then(() => {
+    // ファイルシステム関連のハンドラーを登録
+    registerFileSystemHandlers();
 
-// IPC通信の設定
-ipcMain.handle('dialog:openDirectory', async () => {
-    const result = await dialog.showOpenDialog({
-        properties: ['openDirectory']
+    createWindow();
+
+    app.on('activate', () => {
+        // macOSでは、ドックアイコンをクリックしてウィンドウがない場合に
+        // アプリケーションのウィンドウを再作成するのが一般的
+        if (mainWindow === null) createWindow();
     });
-    return result;
 });

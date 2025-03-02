@@ -8,12 +8,21 @@ interface MarkdownEditorProps {
   filePath: string | null;
 }
 
+// error型を明示的に定義
+interface ErrorResponse {
+  error: string;
+}
+
+function isErrorResponse(obj: any): obj is ErrorResponse {
+  return obj && typeof obj === 'object' && 'error' in obj;
+}
+
 const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ filePath }) => {
   const [content, setContent] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState<boolean>(false);
-  
+
   useEffect(() => {
     if (filePath) {
       loadFile(filePath);
@@ -21,16 +30,17 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ filePath }) => {
       setContent('');
     }
   }, [filePath]);
-  
+
   const loadFile = async (path: string) => {
     try {
       setIsLoading(true);
       setError(null);
-      const result = await ipcRenderer.invoke('read-markdown-file', path);
-      if (result && typeof result === 'object' && 'error' in result) {
-        setError(result.error as string);
+      const content = await window.electronAPI.readMarkdownFile(path);
+
+      if (isErrorResponse(content)) {
+        setError(content.error);
       } else {
-        setContent(result as string);
+        setContent(content as string);
       }
     } catch (err) {
       setError(`Failed to load file: ${(err as Error).message}`);
@@ -38,15 +48,16 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ filePath }) => {
       setIsLoading(false);
     }
   };
-  
+
   const saveFile = async () => {
     if (!filePath) return;
-    
+
     try {
       setIsSaving(true);
-      const result = await ipcRenderer.invoke('save-markdown-file', filePath, content);
-      if (result && typeof result === 'object' && 'error' in result) {
-        setError(`Failed to save: ${result.error as string}`);
+      const result = await window.electronAPI.saveMarkdownFile(filePath, content);
+
+      if (isErrorResponse(result)) {
+        setError(`Failed to save: ${result.error}`);
       }
     } catch (err) {
       setError(`Failed to save file: ${(err as Error).message}`);
@@ -54,7 +65,7 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ filePath }) => {
       setIsSaving(false);
     }
   };
-  
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     // Ctrl+S or Cmd+S to save
     if ((e.ctrlKey || e.metaKey) && e.key === 's') {
@@ -62,19 +73,19 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ filePath }) => {
       saveFile();
     }
   };
-  
+
   if (isLoading) {
     return <div className="markdown-loading">Loading...</div>;
   }
-  
+
   if (error) {
     return <div className="markdown-error">{error}</div>;
   }
-  
+
   if (!filePath) {
     return <div className="markdown-empty">No file selected</div>;
   }
-  
+
   return (
     <div className="markdown-editor" onKeyDown={handleKeyDown}>
       <div className="editor-toolbar">

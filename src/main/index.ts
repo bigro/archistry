@@ -43,13 +43,14 @@ const waitForWebpack = async () => {
 };
 
 const createWindow = (): void => {
+
     // Create the browser window.
     mainWindow = new BrowserWindow({
         height: 600,
         width: 800,
         webPreferences: {
-            nodeIntegration: true,
-            contextIsolation: false,
+            nodeIntegration: false,
+            contextIsolation: true,
             devTools: process.env.NODE_ENV === 'development',  // 開発時のみDevToolsを有効化
             preload: path.join(__dirname, 'preload.js')
         }

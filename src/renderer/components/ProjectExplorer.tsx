@@ -2,7 +2,16 @@ import React, { useState } from 'react';
 import { FaFolder, FaFolderOpen, FaMarkdown, FaChevronRight, FaChevronDown } from 'react-icons/fa';
 import './ProjectExplorer.css';
 
-const { ipcRenderer } = window.require('electron');
+declare global {
+  interface Window {
+    electronAPI: {
+      openFolder: () => Promise<string | null>;
+      readDirectory: (path: string) => Promise<any>;
+      readMarkdownFile: (path: string) => Promise<string>;
+      saveMarkdownFile: (path: string, content: string) => Promise<{ success: boolean } | { error: string }>;
+    }
+  }
+}
 
 // ディレクトリ構造の型定義
 interface DirectoryItem {
@@ -29,11 +38,11 @@ const FileTreeItem: React.FC<FileTreeItemProps> = ({ item, level, onSelectFile, 
   const [isExpanded, setIsExpanded] = useState(false);
   const isDirectory = item.type === 'directory';
   const isSelected = selectedFile === item.path;
-  
+
   const toggleExpand = () => {
     setIsExpanded(!isExpanded);
   };
-  
+
   const handleClick = () => {
     if (isDirectory) {
       toggleExpand();
@@ -41,11 +50,11 @@ const FileTreeItem: React.FC<FileTreeItemProps> = ({ item, level, onSelectFile, 
       onSelectFile(item.path);
     }
   };
-  
+
   return (
     <div className="file-tree-item">
-      <div 
-        className={`file-tree-node ${isSelected ? 'selected' : ''}`} 
+      <div
+        className={`file-tree-node ${isSelected ? 'selected' : ''}`}
         style={{ paddingLeft: `${level * 16}px` }}
         onClick={handleClick}
       >
@@ -63,13 +72,13 @@ const FileTreeItem: React.FC<FileTreeItemProps> = ({ item, level, onSelectFile, 
         </span>
         <span className="name">{item.name}</span>
       </div>
-      
+
       {isDirectory && isExpanded && item.children && (
         <div className="file-tree-children">
           {item.children.map((child) => (
-            <FileTreeItem 
-              key={child.path} 
-              item={child} 
+            <FileTreeItem
+              key={child.path}
+              item={child}
               level={level + 1}
               onSelectFile={onSelectFile}
               selectedFile={selectedFile}
@@ -84,16 +93,33 @@ const FileTreeItem: React.FC<FileTreeItemProps> = ({ item, level, onSelectFile, 
 const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ onSelectFile, selectedFile }) => {
   const [structure, setStructure] = useState<DirectoryItem | null>(null);
   const [projectPath, setProjectPath] = useState<string | null>(null);
-  
+  const [error, setError] = useState<string | null>(null);
+
   const openFolder = async () => {
-    const folderPath = await ipcRenderer.invoke('open-folder-dialog');
-    if (folderPath) {
-      setProjectPath(folderPath);
-      const structure = await ipcRenderer.invoke('read-directory', folderPath);
-      setStructure(structure);
+    try {
+      console.log('Trying to open folder dialog...');
+      const folderPath = await window.electronAPI.openFolder();
+      console.log('Selected folder:', folderPath);
+
+      if (folderPath) {
+        setProjectPath(folderPath);
+        console.log('Reading directory structure...');
+        const structure = await window.electronAPI.readDirectory(folderPath);
+        console.log('Directory structure received:', structure);
+
+        if (structure) {
+          setStructure(structure);
+          setError(null);
+        } else {
+          setError('Failed to read directory structure');
+        }
+      }
+    } catch (err) {
+      console.error('Error in openFolder:', err);
+      setError(`Error: ${(err as Error).message}`);
     }
   };
-  
+
   return (
     <div className="project-explorer">
       <div className="project-toolbar">
@@ -102,11 +128,11 @@ const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ onSelectFile, selecte
         </button>
         {projectPath && <span className="project-path">{projectPath}</span>}
       </div>
-      
+
       <div className="file-tree">
         {structure ? (
-          <FileTreeItem 
-            item={structure} 
+          <FileTreeItem
+            item={structure}
             level={0}
             onSelectFile={onSelectFile}
             selectedFile={selectedFile}
